@@ -1,0 +1,4 @@
+interface:
+  display_name: "API 数据调研"
+  short_description: "核验官方与第三方 API 字段，输出能力矩阵"
+  default_prompt: "Use $api-data-research to compare official and third-party APIs for a platform and export a capability matrix."

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "api-data-research",
+    "category": "research",
+    "path": "skills/api-data-research",
+    "summary": "Research and compare official and third-party API data access, verify exact fields from docs, and produce capability matrices.",
+    "risk": "external-source-verification",
+    "public": true
+  }
+]
