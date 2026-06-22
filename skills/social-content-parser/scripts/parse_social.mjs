@@ -316,6 +316,125 @@ function normalizeLivePhoto(value) {
     : [];
 }
 
+function normalizeMediaItem(item, typeHint = '') {
+  if (!item) return null;
+  if (typeof item === 'string') {
+    return { url: item, thumbnailUrl: '', width: null, height: null, duration: null, format: '', type: typeHint };
+  }
+  return {
+    url: item.url ?? '',
+    thumbnailUrl: item.thumbnailUrl ?? item.thumbnail_url ?? '',
+    width: item.width ?? null,
+    height: item.height ?? null,
+    duration: item.duration ?? null,
+    format: item.format ?? '',
+    type: item.type ?? typeHint
+  };
+}
+
+function normalizeUnifiedMedia(normalized) {
+  const sourceMedia = normalized?.media && typeof normalized.media === 'object' ? normalized.media : {};
+  const photos = Array.isArray(sourceMedia.photos) && sourceMedia.photos.length
+    ? sourceMedia.photos.map((item) => normalizeMediaItem(item, 'photo')).filter((item) => item?.url)
+    : asArray(normalized?.images).map((url) => normalizeMediaItem(url, 'photo')).filter((item) => item?.url);
+
+  const videosFromMedia = Array.isArray(sourceMedia.videos) && sourceMedia.videos.length
+    ? sourceMedia.videos.map((item) => normalizeMediaItem(item, 'video')).filter((item) => item?.url)
+    : [];
+
+  const fallbackVideos = [
+    ...asArray(normalized?.primaryVideo).map((url) => normalizeMediaItem(url, 'video')),
+    ...asArray(normalized?.videoBackups).map((url) => normalizeMediaItem(url, 'video')),
+    ...Array.isArray(normalized?.livePhoto)
+      ? normalized.livePhoto.map((item) => normalizeMediaItem(item?.video, 'video'))
+      : []
+  ].filter((item) => item?.url);
+
+  const videos = videosFromMedia.length ? videosFromMedia : fallbackVideos;
+  const external = sourceMedia.external && typeof sourceMedia.external === 'object'
+    ? {
+        type: sourceMedia.external.type ?? '',
+        url: sourceMedia.external.url ?? '',
+        width: sourceMedia.external.width ?? null,
+        height: sourceMedia.external.height ?? null,
+        duration: sourceMedia.external.duration ?? null
+      }
+    : null;
+
+  const all = Array.isArray(sourceMedia.all) && sourceMedia.all.length
+    ? sourceMedia.all.map((item) => normalizeMediaItem(item, item?.type || '')).filter((item) => item?.url)
+    : [
+        ...photos,
+        ...videos,
+        ...(external ? [external] : [])
+      ];
+
+  return {
+    photos,
+    videos,
+    external,
+    all
+  };
+}
+
+function finalizeNormalized(normalized) {
+  const author = normalized?.author && typeof normalized.author === 'object' ? normalized.author : {};
+  const music = normalized?.music && typeof normalized.music === 'object' ? normalized.music : {};
+  const statistics = normalized?.statistics && typeof normalized.statistics === 'object' ? normalized.statistics : {};
+  const media = normalizeUnifiedMedia(normalized);
+
+  return {
+    platform: normalized?.platform ?? '',
+    kind: normalized?.kind ?? '',
+    sourceUrl: normalized?.sourceUrl ?? '',
+    canonicalUrl: normalized?.canonicalUrl ?? normalizeShareUrl(normalized?.sourceUrl || ''),
+    sourceId: normalized?.sourceId ?? '',
+    code: normalized?.code ?? null,
+    msg: normalized?.msg ?? '',
+    type: normalized?.type ?? null,
+    title: normalized?.title ?? '',
+    desc: normalized?.desc ?? '',
+    author: {
+      name: author.name ?? '',
+      id: author.id ?? '',
+      avatar: author.avatar ?? '',
+      secUid: author.secUid ?? '',
+      banner: author.banner ?? ''
+    },
+    cover: normalized?.cover ?? '',
+    primaryVideo: normalized?.primaryVideo ?? '',
+    videoBackups: asArray(normalized?.videoBackups),
+    images: asArray(normalized?.images),
+    livePhoto: normalizeLivePhoto(normalized?.livePhoto),
+    music: {
+      title: music.title ?? '',
+      author: music.author ?? '',
+      url: music.url ?? '',
+      cover: music.cover ?? ''
+    },
+    statistics,
+    parts: Array.isArray(normalized?.parts) ? normalized.parts : [],
+    items: Array.isArray(normalized?.items) ? normalized.items : [],
+    pagination: normalized?.pagination && typeof normalized.pagination === 'object' ? normalized.pagination : {},
+    totalVideos: Number.isFinite(normalized?.totalVideos) ? normalized.totalVideos : 0,
+    fallbackUsed: Boolean(normalized?.fallbackUsed),
+    parseMode: normalized?.parseMode ?? 'primary',
+    createdAt: normalized?.createdAt ?? '',
+    createdTimestamp: normalized?.createdTimestamp ?? null,
+    source: normalized?.source ?? '',
+    twitterCard: normalized?.twitterCard ?? '',
+    lang: normalized?.lang ?? '',
+    replyingTo: normalized?.replyingTo ?? null,
+    replyingToStatus: normalized?.replyingToStatus ?? null,
+    article: normalized?.article ?? null,
+    media,
+    secondaryUsed: Boolean(normalized?.secondaryUsed),
+    supportedFields: Array.isArray(normalized?.supportedFields) ? normalized.supportedFields : [],
+    meta: normalized?.meta && typeof normalized.meta === 'object' ? normalized.meta : {},
+    schemaVersion: 1
+  };
+}
+
 function shortenText(value, limit = 80) {
   const text = String(value || '').replace(/\s+/g, ' ').trim();
   if (!text) return '';
@@ -469,7 +588,7 @@ function normalizeDouyinProfile(payload, sourceUrl) {
   const author = first.author || {};
   const profileId = author.secUid || author.id || '';
 
-  return {
+  return finalizeNormalized({
     platform: 'douyin',
     kind: 'profile',
     sourceUrl,
@@ -506,13 +625,13 @@ function normalizeDouyinProfile(payload, sourceUrl) {
       'music',
       'statistics'
     ]
-  };
+  });
 }
 
 function normalizeDouyinSecondary(payload, sourceUrl, canonicalUrl) {
   const data = payload?.data || {};
   const authorAvatar = data.avatar ?? data.music?.avatar ?? '';
-  return {
+  return finalizeNormalized({
     platform: 'douyin',
     kind: 'secondary',
     sourceUrl,
@@ -558,7 +677,7 @@ function normalizeDouyinSecondary(payload, sourceUrl, canonicalUrl) {
       'music',
       'statistics'
     ]
-  };
+  });
 }
 
 function normalizeBilibiliSecondary(payload, sourceUrl, canonicalUrl) {
@@ -566,7 +685,7 @@ function normalizeBilibiliSecondary(payload, sourceUrl, canonicalUrl) {
   const primaryPage = pages[0] || {};
   const owner = payload?.owner || {};
   const stat = payload?.stat || {};
-  return {
+  return finalizeNormalized({
     platform: 'bilibili',
     kind: 'secondary',
     sourceUrl,
@@ -610,13 +729,13 @@ function normalizeBilibiliSecondary(payload, sourceUrl, canonicalUrl) {
       'parts',
       'statistics'
     ]
-  };
+  });
 }
 
 function normalizeTwitterPrimary(payload, sourceUrl, canonicalUrl) {
   const tweet = payload?.tweet || {};
   const normalizedTweet = normalizeTwitterTweet(tweet) || {};
-  return {
+  return finalizeNormalized({
     platform: 'twitter',
     kind: 'post',
     sourceUrl,
@@ -670,7 +789,7 @@ function normalizeTwitterPrimary(payload, sourceUrl, canonicalUrl) {
       'statistics',
       'createdAt'
     ]
-  };
+  });
 }
 
 function normalizeFallbackPayload(platform, payload, sourceUrl, canonicalUrl) {
@@ -682,7 +801,7 @@ function normalizeFallbackPayload(platform, payload, sourceUrl, canonicalUrl) {
   const primaryVideo = data.url ?? data.video_url ?? '';
   const type = data.type ?? (images.length ? 'image' : primaryVideo ? 'video' : null);
 
-  return {
+  return finalizeNormalized({
     platform,
     kind: 'fallback',
     sourceUrl,
@@ -731,7 +850,7 @@ function normalizeFallbackPayload(platform, payload, sourceUrl, canonicalUrl) {
       'music',
       'statistics'
     ]
-  };
+  });
 }
 
 function isUsablePrimaryPayload(platform, payload, kind) {
@@ -764,7 +883,7 @@ function normalizePayload(platform, payload, sourceUrl, kind = 'auto') {
     ...normalizeParts(platform, data).map((item) => item.url).filter(Boolean)
   ];
 
-  return {
+  return finalizeNormalized({
     platform,
     kind: 'post',
     sourceUrl,
@@ -806,7 +925,7 @@ function normalizePayload(platform, payload, sourceUrl, kind = 'auto') {
       'statistics',
       'parts'
     ]
-  };
+  });
 }
 
 function buildRunFolderName(normalized) {
