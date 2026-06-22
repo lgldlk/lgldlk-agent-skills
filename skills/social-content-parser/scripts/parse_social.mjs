@@ -626,7 +626,8 @@ function buildRunFolderName(normalized) {
 }
 
 async function fetchPrimaryOrFallback({ platform, sourceUrl, canonicalUrl, kind, count, id, retries }) {
-  const primaryUrl = apiUrlFor({ platform, sourceUrl: canonicalUrl, kind, count, id });
+  const primarySourceUrl = platform === 'xiaohongshu' ? sourceUrl : canonicalUrl;
+  const primaryUrl = apiUrlFor({ platform, sourceUrl: primarySourceUrl, kind, count, id });
   try {
     const payload = await fetchWithRetry(primaryUrl, retries);
     if (isUsablePrimaryPayload(platform, payload, kind)) return { payload, mode: 'primary' };
@@ -645,7 +646,8 @@ async function fetchPrimaryOrFallback({ platform, sourceUrl, canonicalUrl, kind,
     }
   }
 
-  const fallbackUrl = apiFallbackUrlFor(sourceUrl || canonicalUrl);
+  const fallbackSourceUrl = platform === 'xiaohongshu' ? sourceUrl || canonicalUrl : sourceUrl || canonicalUrl;
+  const fallbackUrl = apiFallbackUrlFor(fallbackSourceUrl);
   const payload = await fetchWithRetry(fallbackUrl, retries);
   return { payload, mode: 'fallback' };
 }

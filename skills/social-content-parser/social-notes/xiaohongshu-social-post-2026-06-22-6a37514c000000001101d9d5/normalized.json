@@ -1,0 +1,51 @@
+{
+  "platform": "xiaohongshu",
+  "kind": "fallback",
+  "sourceUrl": "https://www.xiaohongshu.com/explore/6a37514c000000001101d9d5?app_platform=ios&app_version=9.0.2&share_from_user_hidden=true&xsec_source=app_share&type=normal&xsec_token=CBBNYcvAXoAYggeVbp3T9pc-v8xm20ckKjNF2DSiPqyhE=&author_share=1&xhsshare=CopyLink&shareRedId=ODszMkdGSDw2NzUyOTgwNjg3OTg5N0tO&apptime=1782128100&share_id=ab272f6fbcbb40708a7356d4b4f13dea",
+  "canonicalUrl": "https://www.xiaohongshu.com/explore/6a37514c000000001101d9d5",
+  "code": 404,
+  "msg": "解析失败，未找到有效内容",
+  "type": null,
+  "title": "",
+  "desc": "",
+  "author": {
+    "name": "",
+    "id": "",
+    "avatar": ""
+  },
+  "cover": "",
+  "primaryVideo": "",
+  "videoBackups": [],
+  "images": [],
+  "livePhoto": [],
+  "music": {
+    "title": "",
+    "author": "",
+    "url": "",
+    "cover": ""
+  },
+  "statistics": {
+    "like": null,
+    "time": null
+  },
+  "parts": [],
+  "totalVideos": 0,
+  "items": [],
+  "pagination": {},
+  "sourceId": "6a37514c000000001101d9d5",
+  "fallbackUsed": true,
+  "secondaryUsed": false,
+  "supportedFields": [
+    "title",
+    "desc",
+    "author",
+    "cover",
+    "primaryVideo",
+    "videoBackups",
+    "images",
+    "livePhoto",
+    "music",
+    "statistics"
+  ],
+  "parseMode": "fallback"
+}

@@ -1,0 +1,51 @@
+{
+  "platform": "xiaohongshu",
+  "kind": "fallback",
+  "sourceUrl": "https://xhslink.com/o/i9YWyRp9GU",
+  "canonicalUrl": "https://xhslink.com/o/i9YWyRp9GU",
+  "code": 404,
+  "msg": "解析失败，未找到有效内容",
+  "type": null,
+  "title": "",
+  "desc": "",
+  "author": {
+    "name": "",
+    "id": "",
+    "avatar": ""
+  },
+  "cover": "",
+  "primaryVideo": "",
+  "videoBackups": [],
+  "images": [],
+  "livePhoto": [],
+  "music": {
+    "title": "",
+    "author": "",
+    "url": "",
+    "cover": ""
+  },
+  "statistics": {
+    "like": null,
+    "time": null
+  },
+  "parts": [],
+  "totalVideos": 0,
+  "items": [],
+  "pagination": {},
+  "sourceId": "",
+  "fallbackUsed": true,
+  "secondaryUsed": false,
+  "supportedFields": [
+    "title",
+    "desc",
+    "author",
+    "cover",
+    "primaryVideo",
+    "videoBackups",
+    "images",
+    "livePhoto",
+    "music",
+    "statistics"
+  ],
+  "parseMode": "fallback"
+}

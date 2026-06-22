@@ -1,0 +1,39 @@
+{
+  "code": 200,
+  "msg": "解析成功",
+  "data": {
+    "type": "image",
+    "title": "我给腾讯美团小红书的企业培训，免费开放",
+    "desc": "内容在 superlinear.academy里都能看到\n\t\n很多实用教学的凝练 是公域互联网很难找到的高质量材料\n\t\n#ai[话题]#",
+    "author": {
+      "name": "课代表立正",
+      "id": "62a402140000000019029369",
+      "avatar": "https://sns-avatar-qc.xhscdn.com/avatar/1040g2jo3219jpdtn6s005ol408a6d4r94bg4oso"
+    },
+    "cover": "https://ci.xiaohongshu.com/1040g2sg321lmp027n4705ol408a6d4r94ciuu9g?imageView2/2/w/0/format/jpg",
+    "url": null,
+    "images": [
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n4705ol408a6d4r94ciuu9g?imageView2/2/w/0/format/jpg",
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n47g5ol408a6d4r9ov0ab18?imageView2/2/w/0/format/jpg",
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n4805ol408a6d4r9tp6gko0?imageView2/2/w/0/format/jpg",
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n48g5ol408a6d4r951jpkao?imageView2/2/w/0/format/jpg",
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n4905ol408a6d4r98s7q7h0?imageView2/2/w/0/format/jpg",
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n49g5ol408a6d4r9n1d9dv8?imageView2/2/w/0/format/jpg",
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n4a05ol408a6d4r9n43mlao?imageView2/2/w/0/format/jpg",
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n4ag5ol408a6d4r92mkni4g?imageView2/2/w/0/format/jpg",
+      "https://ci.xiaohongshu.com/1040g2sg321lmp027n4b05ol408a6d4r9spbgfag?imageView2/2/w/0/format/jpg"
+    ],
+    "live_photo": []
+  },
+  "cache_written_at": 1782132426,
+  "cache_written_time": "2026-06-22 20:47:06 +08:00",
+  "cache_expire_at": 1782133026,
+  "cache_expire_time": "2026-06-22 20:57:06 +08:00",
+  "cache_ttl": 600,
+  "cache_status": "fresh",
+  "bktip": {
+    "Auther": "BugPk-Api",
+    "website": "https://api.bugpk.com/",
+    "tip": "本接口由BugPk-Api提供服务"
+  }
+}
