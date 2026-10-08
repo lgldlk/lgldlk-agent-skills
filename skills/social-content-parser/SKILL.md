@@ -1,6 +1,6 @@
 ---
 name: social-content-parser
-description: Parse public short-video and social share URLs through platform-specific APIs plus an aggregated fallback that covers 20+ platforms including Douyin, Kuaishou, Xiaohongshu, Bilibili, X/Twitter, YouTube, TikTok, Xigua, Haokan, Weishi, Pear Video, AcFun, Zhihu, Oasis, Meipai, Quanmin, Huya, Instagram, Doubao, Jimeng AI, and WeChat Channels. Use when a user wants to extract or archive public social links into local files, including cases where tracking parameters appear, X/Twitter posts need FXTwitter, or the primary parser needs a fallback route.
+description: Parse public short-video and social share URLs into local content packages through platform-specific APIs plus an aggregated fallback covering 20+ platforms including Douyin, Kuaishou, Xiaohongshu, Bilibili, X/Twitter, YouTube, TikTok, Xigua, Haokan, Weishi, Pear Video, AcFun, Zhihu, Oasis, Meipai, Quanmin, Huya, Instagram, Doubao, Jimeng AI, and WeChat Channels. Use for extracting or archiving public links, noisy share parameters, FXTwitter, fallback routes, or when the user wants a share-link video transcribed with the companion video-to-text skill.
 ---
 
 # Social Content Parser
@@ -37,6 +37,7 @@ Fallback order:
 9. Normalize shared fields into `normalized.json`.
 10. Write a human-readable `report.md`.
 11. Download avatar, cover, images, live-photo media, and optional videos into `media/` unless disabled.
+12. Only when `--transcribe` is explicitly supplied, select the first normalized video and invoke `video-to-text`; write the result beside the other content files.
 
 ## Output Contract
 
@@ -54,6 +55,7 @@ Files:
 - `normalized.json`
 - `raw.json`
 - `media/`
+- `transcript.txt|json|srt|md` when transcription is requested and succeeds
 
 Normalized fields:
 
@@ -80,6 +82,12 @@ Normalized fields:
 - `parts`
 - `items`
 - `pagination`
+- `transcription.enabled`
+- `transcription.status`
+- `transcription.requestedMode`
+- `transcription.usedMode`
+- `transcription.format`
+- `transcription.output`
 
 ## Commands
 
@@ -88,6 +96,8 @@ node scripts/parse_social.mjs --url "https://v.douyin.com/..."
 node scripts/parse_social.mjs --url "https://www.douyin.com/user/..." --count 10
 node scripts/parse_social.mjs --url "https://b23.tv/..."
 node scripts/parse_social.mjs --url "https://www.xiaohongshu.com/explore/..."
+node scripts/parse_social.mjs --url "https://v.douyin.com/..." --transcribe
+node scripts/parse_social.mjs --url "https://www.xiaohongshu.com/explore/..." --transcribe --transcript-format srt
 ```
 
 Useful options:
@@ -99,6 +109,26 @@ node scripts/parse_social.mjs --url "<share-url>" --download-video
 node scripts/parse_social.mjs --platform douyin --kind profile --id "<sec_uid>" --count 10
 node scripts/parse_social.mjs --from-file raw.json --platform douyin
 ```
+
+Transcription options:
+
+```bash
+node scripts/parse_social.mjs --url "<share-url>" --transcribe
+node scripts/parse_social.mjs --url "<share-url>" --no-download --transcribe
+node scripts/parse_social.mjs --url "<share-url>" --transcribe --transcription-mode direct
+node scripts/parse_social.mjs --url "<share-url>" --transcribe --transcription-mode local --speaker-diarization
+node scripts/parse_social.mjs --url "<share-url>" --transcribe --transcript-format srt --sentence-max-length 20
+```
+
+- Transcription is off by default because Tencent ASR is a paid external operation.
+- Install the companion `video-to-text` skill as a sibling before using `--transcribe`.
+- `direct` is the default. It sends the normalized media URL straight to Tencent without downloading or transcoding it locally.
+- `local` downloads the media first and never falls back to the remote URL. Use it when CDN URLs require request headers or expire quickly.
+- `auto` is an explicit recovery mode: it tries a temporary local download first and falls back to direct URL only when local preparation fails before ASR task submission.
+- Add `--no-download` when only the transcript is needed. Direct transcription does not need a local video copy.
+- The workflow discovers `video-to-text` as a sibling skill first, then project/user `.agents/skills` and `.skills` installs, or accepts `--video-to-text-script` / `VIDEO_TO_TEXT_SCRIPT`.
+- Douyin profile results contain multiple works and are not implicitly transcribed. Supply a single work URL instead.
+- There is no COS upload bridge yet. If a protected CDN URL cannot be fetched by Tencent and the locally transcoded audio still exceeds Tencent's 5 MB inline limit, upload the media to COS or another public object store and run `video-to-text --url` on that URL.
 
 ## Platform Notes
 
@@ -118,4 +148,6 @@ node scripts/parse_social.mjs --from-file raw.json --platform douyin
 - Do not invent engagement metrics. Keep unsupported fields empty or absent.
 - Do not assume every platform returns the same schema.
 - Do not download videos unless the user asks or `--download-video` is provided.
+- Do not transcribe unless the user asks or `--transcribe` is provided.
+- Treat `--transcribe` as authorization for one Tencent ASR task. Do not retry a submitted ASR task through another mode; automatic fallback is allowed only before task submission.
 - Preserve `raw.json` exactly for debugging and future schema changes.

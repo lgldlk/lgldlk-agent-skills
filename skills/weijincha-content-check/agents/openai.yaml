@@ -1,0 +1,4 @@
+interface:
+  display_name: "违禁查多平台检测"
+  short_description: "检测闲鱼及多平台文本、文件附件和链接中的违禁与行业风险词"
+  default_prompt: "使用 $weijincha-content-check 审核这段文本、附件或文件链接并汇总风险词。"

@@ -35,8 +35,16 @@
     "name": "social-content-parser",
     "category": "content-data",
     "path": "skills/social-content-parser",
-    "summary": "Auto-detect and parse public Xiaohongshu, Douyin, and Bilibili share links through BugPk public APIs, clean noisy share parameters, route Douyin profile and work links separately, and fall back to a general short-video parser when needed.",
+    "summary": "Parse public Xiaohongshu, Douyin, Bilibili, X/Twitter, and 20+ short-video share links into local packages, with optional transcription through the companion video-to-text skill.",
     "risk": "third-party-public-parser-api",
+    "public": true
+  },
+  {
+    "name": "video-to-text",
+    "category": "content-data",
+    "path": "skills/video-to-text",
+    "summary": "Transcribe local video/audio files or public media download URLs with Tencent Cloud ASR into txt, json, srt, or markdown, using credentials kept outside the skill directory.",
+    "risk": "paid-third-party-asr",
     "public": true
   },
   {
@@ -45,6 +53,14 @@
     "path": "skills/ai-news-digest",
     "summary": "Fetch current AI news from RSS/Atom feeds, optional X and non-RSS sources, and GitHub AI trending, then produce a dated digest with links and trend notes.",
     "risk": "external-source-verification",
+    "public": true
+  },
+  {
+    "name": "weijincha-content-check",
+    "category": "content-compliance",
+    "path": "skills/weijincha-content-check",
+    "summary": "Check Chinese copy, local text files, and public text-file URLs for platform and industry risk terms through the Weijincha multi-scope endpoint.",
+    "risk": "third-party-undocumented-content-moderation-api",
     "public": true
   }
 ]

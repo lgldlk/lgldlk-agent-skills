@@ -1,0 +1,15 @@
+{
+  "provider": "tencent",
+  "tencent": {
+    "credentialFile": "keys/tencent.json",
+    "region": "ap-shanghai",
+    "engineModelType": "16k_zh",
+    "resTextFormat": 3,
+    "channelNum": 1,
+    "speakerDiarization": 0,
+    "speakerNumber": 0,
+    "sentenceMaxLength": 0,
+    "hotwordId": "",
+    "hotwordList": ""
+  }
+}

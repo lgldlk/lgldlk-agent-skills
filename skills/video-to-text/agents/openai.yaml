@@ -1,0 +1,7 @@
+interface:
+  display_name: "Video to Text"
+  short_description: "Transcribe local media or public URLs with Tencent ASR"
+  default_prompt: "Use $video-to-text to transcribe a local media file or public media URL with Tencent Cloud ASR."
+
+policy:
+  allow_implicit_invocation: false

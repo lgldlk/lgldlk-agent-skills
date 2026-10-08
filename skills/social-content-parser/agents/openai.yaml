@@ -1,4 +1,4 @@
 interface:
   display_name: "Social Content Parser"
-  short_description: "Parse XHS, Douyin, and Bilibili links into local docs and media."
-  default_prompt: "Use $social-content-parser to parse a public Xiaohongshu, Douyin, or Bilibili share URL, clean tracking parameters when present, route Douyin profile and work links separately, and fall back to a general short-video parser when needed."
+  short_description: "Parse social links and optionally transcribe their videos"
+  default_prompt: "Use $social-content-parser to parse a public social share URL into a local package, and transcribe its video only when I explicitly request transcription."

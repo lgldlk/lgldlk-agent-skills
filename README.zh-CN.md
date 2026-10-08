@@ -4,7 +4,7 @@
 
 这是 `lgldlk` 维护的公开个人 Agent Skills 仓库。
 
-这些技能来自真实、反复出现的工作流：API 数据能力调研、AI 新闻追踪、小程序 UI 对齐 Figma、Markdown 打包导出，以及多 agent 流水线协作。这个仓库可以作为个人技能库安装，也可以单独查看和复制某一个技能。
+这些技能来自真实、反复出现的工作流：API 数据能力调研、AI 新闻追踪、小程序 UI 对齐 Figma、Markdown 打包导出、公开社交链接解析、音视频转写，以及多 agent 流水线协作。这个仓库可以作为个人技能库安装，也可以单独查看和复制某一个技能。
 
 ## 技能列表
 
@@ -15,7 +15,9 @@
 | [`agent-pipeline-orchestration`](skills/agent-pipeline-orchestration/SKILL.md) | 把工作拆成非阻塞的多 agent 流水线，包含实现、评审、QA 和下一阶段映射。 | 流水线分工、worker 提示词和集成说明。 |
 | [`miniapp-figma-alignment`](skills/miniapp-figma-alignment/SKILL.md) | 修正或实现小程序、uni-app、Taro 页面，让它们和 Figma 尺寸及平台行为对齐。 | 单位换算判断、实现建议、视觉 QA 清单。 |
 | [`markdown-platform-pack`](skills/markdown-platform-pack/SKILL.md) | 把 Markdown 转成适合导入的 Word 包，先把表格和代码块转成图片。 | `*.tmp.md`、PNG 块图片、`*.docx` 导入文件。 |
-| [`social-content-parser`](skills/social-content-parser/SKILL.md) | 解析公开短视频和社交分享链接，提供 20+ 平台兜底层，包括小红书、抖音、哔哩哔哩，生成本地报告和媒体包。 | `report.md`、`normalized.json`、`raw.json` 和本地媒体文件。 |
+| [`social-content-parser`](skills/social-content-parser/SKILL.md) | 解析公开短视频和社交分享链接，提供 20+ 平台兜底层，包括小红书、抖音、哔哩哔哩，生成本地报告和媒体包。 | `report.md`、`normalized.json`、`raw.json`、本地媒体和可选转写。 |
+| [`video-to-text`](skills/video-to-text/SKILL.md) | 用腾讯云 ASR 转写本地音视频或可公开下载的媒体 URL。密钥放在技能目录外。 | `transcript.txt`、`.json`、`.srt` 或 `.md`。 |
+| [`weijincha-content-check`](skills/weijincha-content-check/SKILL.md) | 检查中文文案和文本类文件中的平台、广告、违禁及行业风险词。 | 包含通过状态、命中词、检测范围和来源位置的标准化 JSON。 |
 
 ## 快速安装
 
@@ -34,6 +36,8 @@ npx skills add lgldlk/lgldlk-agent-skills --skill agent-pipeline-orchestration -
 npx skills add lgldlk/lgldlk-agent-skills --skill miniapp-figma-alignment -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill markdown-platform-pack -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill social-content-parser -g -y
+npx skills add lgldlk/lgldlk-agent-skills --skill video-to-text -g -y
+npx skills add lgldlk/lgldlk-agent-skills --skill weijincha-content-check -g -y
 ```
 
 手动安装：
@@ -46,6 +50,8 @@ cp -R skills/agent-pipeline-orchestration ~/.skills/
 cp -R skills/miniapp-figma-alignment ~/.skills/
 cp -R skills/markdown-platform-pack ~/.skills/
 cp -R skills/social-content-parser ~/.skills/
+cp -R skills/video-to-text ~/.skills/
+cp -R skills/weijincha-content-check ~/.skills/
 ```
 
 安装后重启你的 agent，让技能元数据重新加载。
@@ -137,6 +143,7 @@ social-notes/
     ├── report.md
     ├── normalized.json
     ├── raw.json
+    ├── transcript.md
     └── media/
         ├── author-avatar.jpg
         ├── cover.jpg
@@ -161,6 +168,49 @@ Report: social-notes/xiaohongshu-demo-note-2026-06-19-demoid/report.md
 - [`examples/social-content-parser-douyin-profile-sample.json`](examples/social-content-parser-douyin-profile-sample.json)
 - [`examples/social-content-parser-bilibili-sample.json`](examples/social-content-parser-bilibili-sample.json)
 
+### Video To Text
+
+这个技能用腾讯云 ASR 转写本地音视频，或可公开下载的媒体 URL。不要把抖音 / 小红书 / B 站分享页直接传给 `--url`。把 SecretId/SecretKey 放在 `~/.config/video-to-text/config.json`、被忽略的 `.video-to-text.json`，或环境变量里。可从 `skills/video-to-text/config.example.json` 复制一份起步配置。
+
+```bash
+python3 skills/video-to-text/scripts/transcribe_media.py \
+  --input ./video.mp4 --output ./transcript.md
+python3 skills/video-to-text/scripts/transcribe_media.py \
+  --url "https://example.com/video.mp4" --output ./subtitle.srt --sentence-max-length 20
+```
+
+### 推荐调用流程：分享链接 → 本地包 → 转写
+
+这两个技能按配对使用。解析免费，应先跑。转写会走付费的腾讯 ASR，只在用户明确要求时再调用。
+
+1. 把两个技能装成兄弟目录：
+
+```bash
+npx skills add lgldlk/lgldlk-agent-skills --skill social-content-parser -g -y
+npx skills add lgldlk/lgldlk-agent-skills --skill video-to-text -g -y
+```
+
+2. 密钥放在技能目录外。优先用 `~/.config/video-to-text/config.json` 里的 `credentialFile`，或 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`。
+3. 先解析分享链接，先不要加 `--transcribe`：
+
+```bash
+node skills/social-content-parser/scripts/parse_social.mjs \
+  --url "https://v.douyin.com/..."
+```
+
+4. 需要转写时，对同一条 URL 加上 `--transcribe`。默认 `direct` 模式会把 `normalized.primaryVideo` 交给腾讯，不必先 `--download-video`：
+
+```bash
+node skills/social-content-parser/scripts/parse_social.mjs \
+  --url "https://v.douyin.com/..." --transcribe --transcript-format md
+```
+
+5. 只有 CDN 需要请求头或链接很快过期时，才用 `--transcription-mode local` 并加上 `--download-video`。
+6. 抖音主页结果包含多条作品。先解析主页，再对单条作品 URL 转写，不要直接转写主页。
+7. 如果手里已经是本地文件，跳过解析器，直接调用 `video-to-text`。
+
+解析器会把 `video-to-text/scripts/transcribe_media.py` 当成兄弟技能自动发现。如果两个技能没有装在一起，用 `--video-to-text-script` 或 `VIDEO_TO_TEXT_SCRIPT` 指定路径。
+
 ## 仓库结构
 
 ```text
@@ -178,7 +228,9 @@ lgldlk-agent-skills/
 │   ├── agent-pipeline-orchestration/
 │   ├── markdown-platform-pack/
 │   ├── miniapp-figma-alignment/
-│   └── social-content-parser/
+│   ├── social-content-parser/
+│   ├── video-to-text/
+│   └── weijincha-content-check/
 └── templates/
 ```
 

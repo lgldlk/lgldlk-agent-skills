@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 const PLATFORMS = {
   xiaohongshu: {
@@ -29,7 +32,16 @@ const PLATFORMS = {
 };
 
 function parseArgs(argv) {
-  const args = { downloadVideo: false, downloadImages: true, retry: 1, kind: 'auto', count: 10 };
+  const args = {
+    downloadVideo: false,
+    downloadImages: true,
+    retry: 1,
+    kind: 'auto',
+    count: 10,
+    transcribe: false,
+    transcriptionMode: 'direct',
+    transcriptFormat: 'md'
+  };
   for (let i = 2; i < argv.length; i += 1) {
     const item = argv[i];
     if (item === '--url') args.url = argv[++i];
@@ -43,6 +55,16 @@ function parseArgs(argv) {
     else if (item === '--download-video') args.downloadVideo = true;
     else if (item === '--no-images') args.downloadImages = false;
     else if (item === '--retry') args.retry = Number(argv[++i] ?? 1);
+    else if (item === '--transcribe') args.transcribe = true;
+    else if (item === '--no-transcribe') args.transcribe = false;
+    else if (item === '--transcription-mode') args.transcriptionMode = argv[++i];
+    else if (item === '--transcript-format') args.transcriptFormat = argv[++i];
+    else if (item === '--video-to-text-script') args.videoToTextScript = argv[++i];
+    else if (item === '--transcription-config') args.transcriptionConfig = argv[++i];
+    else if (item === '--speaker-diarization') args.speakerDiarization = true;
+    else if (item === '--sentence-max-length') args.sentenceMaxLength = Number(argv[++i]);
+    else if (item === '--engine-model-type') args.engineModelType = argv[++i];
+    else if (item === '--hotword-list') args.hotwordList = argv[++i];
     else if (item === '--help' || item === '-h') args.help = true;
   }
   return args;
@@ -62,7 +84,16 @@ function printHelp() {
     '  --no-download      Do not download media files',
     '  --download-video   Download primary videos and live-photo videos',
     '  --no-images        Skip image downloads',
-    '  --retry <n>        Retry API calls, default 1'
+    '  --retry <n>        Retry API calls, default 1',
+    '  --transcribe       Transcribe the first video with video-to-text (paid Tencent ASR)',
+    '  --transcription-mode <direct|local|auto>  Default direct URL submission',
+    '  --transcript-format <txt|json|srt|md>     Default md',
+    '  --video-to-text-script <path>  Override the video-to-text Python script',
+    '  --transcription-config <path>  Override video-to-text config',
+    '  --speaker-diarization           Enable speaker separation',
+    '  --sentence-max-length <6-40>    Control subtitle line length',
+    '  --engine-model-type <model>     Override Tencent ASR model',
+    '  --hotword-list <words>          Tencent temporary hotwords'
   ].join('\n'));
 }
 
@@ -988,10 +1019,192 @@ async function downloadToFile(url, filePath) {
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36'
     }
   });
-  if (!res.ok) throw new Error(`Download failed: ${res.status} ${url}`);
+  if (!res.ok) throw new Error(`Download failed with HTTP ${res.status}`);
   const buf = Buffer.from(await res.arrayBuffer());
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, buf);
+}
+
+function validateTranscriptionArgs(args) {
+  const modes = new Set(['auto', 'direct', 'local']);
+  const formats = new Set(['txt', 'json', 'srt', 'md']);
+  if (!modes.has(args.transcriptionMode)) {
+    throw new Error('--transcription-mode must be auto, direct, or local');
+  }
+  if (!formats.has(args.transcriptFormat)) {
+    throw new Error('--transcript-format must be txt, json, srt, or md');
+  }
+  if (args.sentenceMaxLength != null
+      && (!Number.isInteger(args.sentenceMaxLength)
+        || (args.sentenceMaxLength !== 0
+          && (args.sentenceMaxLength < 6 || args.sentenceMaxLength > 40)))) {
+    throw new Error('--sentence-max-length must be 0 or an integer from 6 through 40');
+  }
+}
+
+function collectVideoUrls(normalized) {
+  const candidates = [
+    normalized.primaryVideo,
+    ...(normalized.media?.videos || []).map((item) => item?.url),
+    ...(normalized.videoBackups || []),
+    ...(normalized.livePhoto || []).map((item) => item?.video)
+  ].filter(Boolean);
+  return [...new Set(candidates)];
+}
+
+async function findVideoToTextScript(args, cwd) {
+  const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+  const home = os.homedir();
+  const relativeScript = path.join('video-to-text', 'scripts', 'transcribe_media.py');
+  const candidates = [
+    args.videoToTextScript,
+    process.env.VIDEO_TO_TEXT_SCRIPT,
+    path.resolve(scriptDir, '..', '..', relativeScript),
+    path.join(cwd, '.agents', 'skills', relativeScript),
+    path.join(cwd, '.skills', relativeScript),
+    path.join(home, '.agents', 'skills', relativeScript),
+    path.join(home, '.skills', relativeScript),
+    path.join(home, '.codex', 'skills', relativeScript),
+    path.resolve(scriptDir, '..', '..', '..', '..', '.agents', 'skills', relativeScript)
+  ].filter(Boolean).map((item) => path.resolve(item));
+
+  for (const candidate of [...new Set(candidates)]) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // Try the next configured/discovered location.
+    }
+  }
+  throw new Error(
+    'video-to-text script not found; use --video-to-text-script or VIDEO_TO_TEXT_SCRIPT'
+  );
+}
+
+function runProcess(command, commandArgs, cwd) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, commandArgs, {
+      cwd,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => {
+      stdout = `${stdout}${chunk}`.slice(-65536);
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr = `${stderr}${chunk}`.slice(-65536);
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+        return;
+      }
+      const err = new Error(`video-to-text exited with status ${code}`);
+      err.exitCode = code;
+      err.stdout = stdout;
+      err.stderr = stderr;
+      reject(err);
+    });
+  });
+}
+
+function transcriberArgs(args, scriptPath, sourceFlag, sourceValue, outputPath) {
+  const commandArgs = [scriptPath, sourceFlag, sourceValue, '--output', outputPath];
+  if (args.transcriptionConfig) {
+    commandArgs.push('--config', path.resolve(args.transcriptionConfig));
+  }
+  if (args.speakerDiarization) commandArgs.push('--speaker-diarization');
+  if (args.sentenceMaxLength != null) {
+    commandArgs.push('--sentence-max-length', String(args.sentenceMaxLength));
+  }
+  if (args.engineModelType) commandArgs.push('--engine-model-type', args.engineModelType);
+  if (args.hotwordList) commandArgs.push('--hotword-list', args.hotwordList);
+  return commandArgs;
+}
+
+async function runTranscriber(args, scriptPath, sourceFlag, sourceValue, outputPath, cwd) {
+  const commandArgs = transcriberArgs(args, scriptPath, sourceFlag, sourceValue, outputPath);
+  try {
+    await runProcess(process.env.PYTHON || 'python3', commandArgs, cwd);
+  } catch (err) {
+    if (sourceFlag === '--url' && err?.stderr) {
+      err.stderr = err.stderr.split(sourceValue).join('[media-url]');
+    }
+    throw err;
+  }
+}
+
+function downloadedPrimaryVideo(downloads) {
+  return downloads.find((item) => /^video(?:\.|$)/.test(path.basename(item))) || '';
+}
+
+async function transcribeSocialVideo(normalized, outDir, downloads, args, cwd) {
+  validateTranscriptionArgs(args);
+  if (normalized.kind === 'profile') {
+    throw new Error('profile results contain multiple works; transcribe a single post URL instead');
+  }
+  const videoUrls = collectVideoUrls(normalized);
+  if (!videoUrls.length) {
+    throw new Error('parsed content has no video resource to transcribe');
+  }
+
+  const scriptPath = await findVideoToTextScript(args, cwd);
+  const mediaUrl = videoUrls[0];
+  const outputPath = path.join(outDir, `transcript.${args.transcriptFormat}`);
+  const direct = async () => {
+    await runTranscriber(args, scriptPath, '--url', mediaUrl, outputPath, cwd);
+    return 'direct';
+  };
+  const local = async () => {
+    const archivedVideo = downloadedPrimaryVideo(downloads);
+    if (archivedVideo) {
+      await runTranscriber(args, scriptPath, '--input', archivedVideo, outputPath, cwd);
+      return 'local';
+    }
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'social-transcribe-'));
+    const tempVideo = path.join(tempDir, `source${extensionFromUrl(mediaUrl, '.mp4')}`);
+    try {
+      try {
+        await downloadToFile(mediaUrl, tempVideo);
+      } catch (err) {
+        err.transcriptionStage = 'download';
+        throw err;
+      }
+      await runTranscriber(args, scriptPath, '--input', tempVideo, outputPath, cwd);
+      return 'local';
+    } finally {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    }
+  };
+
+  let usedMode;
+  if (args.transcriptionMode === 'direct') {
+    usedMode = await direct();
+  } else if (args.transcriptionMode === 'local') {
+    usedMode = await local();
+  } else {
+    try {
+      usedMode = await local();
+    } catch (err) {
+      const beforeAsrSubmission = err.transcriptionStage === 'download'
+        || /inline upload is limited|Upload it to a public\/COS URL/i.test(err.stderr || '');
+      if (!beforeAsrSubmission) throw err;
+      usedMode = await direct();
+    }
+  }
+
+  return {
+    enabled: true,
+    status: 'success',
+    requestedMode: args.transcriptionMode,
+    usedMode,
+    format: args.transcriptFormat,
+    output: outputPath
+  };
 }
 
 async function downloadMedia(normalized, mediaDir, args) {
@@ -1047,6 +1260,17 @@ function buildReport(normalized, outDir, downloads) {
         ''
       ].join('\n')
     : '';
+  const transcription = normalized.transcription || { enabled: false, status: 'not-requested' };
+  const transcriptionSection = [
+    '## 视频转写',
+    `- 是否请求：${transcription.enabled ? '是' : '否'}`,
+    `- 状态：${transcription.status}`,
+    `- 模式：${transcription.usedMode || transcription.requestedMode || '无'}`,
+    `- 格式：${transcription.format || '无'}`,
+    `- 文件：${transcription.output || '无'}`,
+    ...(transcription.error ? [`- 错误：${transcription.error}`] : []),
+    ''
+  ].join('\n');
 
   return [
     `# ${normalized.title || 'Social Content'}`,
@@ -1084,6 +1308,7 @@ function buildReport(normalized, outDir, downloads) {
     `- 备用视频：${normalized.videoBackups.length ? normalized.videoBackups.join('\n  - ') : '无'}`,
     `- 图片：${normalized.images.length ? normalized.images.join('\n  - ') : '无'}`,
     '',
+    transcriptionSection,
     '## 分集 / 合集',
     partsText,
     '',
@@ -1110,6 +1335,7 @@ function buildReport(normalized, outDir, downloads) {
     '6. 保存原始响应。',
     '7. 归一化核心字段。',
     '8. 生成报告并按需下载媒体。',
+    '9. 仅在显式请求时调用 video-to-text，并记录转写状态与产物。',
     '',
     '## 易错点',
     '- 不要把不同平台的字段名当成一致。',
@@ -1128,12 +1354,19 @@ function buildReport(normalized, outDir, downloads) {
   ].join('\n');
 }
 
+function safeErrorMessage(err) {
+  const raw = String(err?.stderr || err?.message || err || 'unknown transcription error').trim();
+  const lastLine = raw.split(/\r?\n/).filter(Boolean).at(-1) || 'unknown transcription error';
+  return lastLine.replace(/https?:\/\/\S+/g, '[media-url]');
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   if (args.help) {
     printHelp();
     process.exit(0);
   }
+  if (args.transcribe) validateTranscriptionArgs(args);
 
   const cwd = process.cwd();
   const rootDir = path.resolve(args.outDir || resolveDownloadRoot(cwd));
@@ -1186,13 +1419,41 @@ async function main() {
   const mediaDir = path.join(outDir, 'media');
   await fs.mkdir(outDir, { recursive: true });
   await writeFileSafe(path.join(outDir, 'raw.json'), JSON.stringify(payload, null, 2));
-  await writeFileSafe(path.join(outDir, 'normalized.json'), JSON.stringify(normalized, null, 2));
 
   const downloads = args.noDownload ? [] : await downloadMedia(normalized, mediaDir, args);
+  let transcriptionError = null;
+  if (args.transcribe) {
+    try {
+      normalized.transcription = await transcribeSocialVideo(
+        normalized,
+        outDir,
+        downloads,
+        args,
+        cwd
+      );
+    } catch (err) {
+      normalized.transcription = {
+        enabled: true,
+        status: 'failed',
+        requestedMode: args.transcriptionMode,
+        format: args.transcriptFormat,
+        output: '',
+        error: safeErrorMessage(err)
+      };
+      transcriptionError = err;
+    }
+  } else {
+    normalized.transcription = {
+      enabled: false,
+      status: 'not-requested'
+    };
+  }
+
+  await writeFileSafe(path.join(outDir, 'normalized.json'), JSON.stringify(normalized, null, 2));
   const report = buildReport(normalized, outDir, downloads);
   await writeFileSafe(path.join(outDir, 'report.md'), report);
 
-  console.log(JSON.stringify({
+  const summary = {
     platform: normalized.platform,
     outDir,
     report: path.join(outDir, 'report.md'),
@@ -1207,8 +1468,13 @@ async function main() {
     images: normalized.images.length,
     livePhoto: normalized.livePhoto.length,
     parts: normalized.parts.length,
-    downloads: downloads.length
-  }, null, 2));
+    downloads: downloads.length,
+    transcription: normalized.transcription
+  };
+  console.log(JSON.stringify(summary, null, 2));
+  if (transcriptionError) {
+    throw new Error(`transcription failed: ${normalized.transcription.error}`);
+  }
 }
 
 main().catch((err) => {

@@ -4,7 +4,7 @@
 
 A public collection of reusable agent skills maintained by `lgldlk`.
 
-These skills come from recurring real workflows: researching API data access, following AI news, aligning mini-program UI with Figma, packaging Markdown for platform import, and orchestrating multi-agent work. The repository is designed as a personal skill library, while keeping every skill inspectable and installable on its own.
+These skills come from recurring real workflows: researching API data access, following AI news, aligning mini-program UI with Figma, packaging Markdown for platform import, parsing public social links, transcribing media, and orchestrating multi-agent work. The repository is designed as a personal skill library, while keeping every skill inspectable and installable on its own.
 
 ## Skills
 
@@ -15,7 +15,9 @@ These skills come from recurring real workflows: researching API data access, fo
 | [`agent-pipeline-orchestration`](skills/agent-pipeline-orchestration/SKILL.md) | Manage work as a non-blocking multi-agent pipeline with bounded implementation, review, QA, and mapping lanes. | Lane planning, worker prompts, and integration guidance. |
 | [`miniapp-figma-alignment`](skills/miniapp-figma-alignment/SKILL.md) | Implement or fix mini-program, uni-app, or Taro screens so they match Figma dimensions and platform behavior. | Unit conversion decisions, implementation guidance, visual QA checklist. |
 | [`markdown-platform-pack`](skills/markdown-platform-pack/SKILL.md) | Convert Markdown into import-safe Word output by rasterizing unsupported tables and code blocks first. | `*.tmp.md`, PNG block images, `*.docx` import files. |
-| [`social-content-parser`](skills/social-content-parser/SKILL.md) | Parse public short-video and social share URLs with a 20+ platform fallback layer, including Xiaohongshu, Douyin, and Bilibili, into local reports and media packages. | `report.md`, `normalized.json`, `raw.json`, and local media files. |
+| [`social-content-parser`](skills/social-content-parser/SKILL.md) | Parse public short-video and social share URLs with a 20+ platform fallback layer, including Xiaohongshu, Douyin, and Bilibili, into local reports and media packages. | `report.md`, `normalized.json`, `raw.json`, local media, and optional transcripts. |
+| [`video-to-text`](skills/video-to-text/SKILL.md) | Transcribe local video/audio files or public media download URLs with Tencent Cloud ASR. Credentials stay outside the skill. | `transcript.txt`, `.json`, `.srt`, or `.md`. |
+| [`weijincha-content-check`](skills/weijincha-content-check/SKILL.md) | Check Chinese copy and text-like files for platform, advertising, prohibited, and industry-specific risk terms. | Normalized JSON with pass status, matched words, scopes, and source locations. |
 
 ## Quick Install
 
@@ -34,6 +36,8 @@ npx skills add lgldlk/lgldlk-agent-skills --skill agent-pipeline-orchestration -
 npx skills add lgldlk/lgldlk-agent-skills --skill miniapp-figma-alignment -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill markdown-platform-pack -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill social-content-parser -g -y
+npx skills add lgldlk/lgldlk-agent-skills --skill video-to-text -g -y
+npx skills add lgldlk/lgldlk-agent-skills --skill weijincha-content-check -g -y
 ```
 
 Manual install:
@@ -46,6 +50,8 @@ cp -R skills/agent-pipeline-orchestration ~/.skills/
 cp -R skills/miniapp-figma-alignment ~/.skills/
 cp -R skills/markdown-platform-pack ~/.skills/
 cp -R skills/social-content-parser ~/.skills/
+cp -R skills/video-to-text ~/.skills/
+cp -R skills/weijincha-content-check ~/.skills/
 ```
 
 Restart your agent after installation so the skill metadata is loaded.
@@ -153,6 +159,7 @@ social-notes/
     ├── report.md
     ├── normalized.json
     ├── raw.json
+    ├── transcript.md
     └── media/
         ├── author-avatar.jpg
         ├── cover.jpg
@@ -177,6 +184,49 @@ Sample API responses:
 - [`examples/social-content-parser-douyin-profile-sample.json`](examples/social-content-parser-douyin-profile-sample.json)
 - [`examples/social-content-parser-bilibili-sample.json`](examples/social-content-parser-bilibili-sample.json)
 
+### Video To Text
+
+This skill transcribes a local media file or a public media download URL with Tencent Cloud ASR. It does not accept a Douyin/Xiaohongshu/Bilibili share page as `--url`. Keep SecretId/SecretKey in `~/.config/video-to-text/config.json`, an ignored `.video-to-text.json`, or environment variables. Copy `skills/video-to-text/config.example.json` as a starting point.
+
+```bash
+python3 skills/video-to-text/scripts/transcribe_media.py \
+  --input ./video.mp4 --output ./transcript.md
+python3 skills/video-to-text/scripts/transcribe_media.py \
+  --url "https://example.com/video.mp4" --output ./subtitle.srt --sentence-max-length 20
+```
+
+### Recommended flow: share link → local package → transcript
+
+Use the two skills as a pair. Parsing is free and should run first. Transcription is a paid Tencent ASR call and should run only when the user asks.
+
+1. Install both skills as siblings:
+
+```bash
+npx skills add lgldlk/lgldlk-agent-skills --skill social-content-parser -g -y
+npx skills add lgldlk/lgldlk-agent-skills --skill video-to-text -g -y
+```
+
+2. Put Tencent credentials outside the skill directory. Preferred: `credentialFile` in `~/.config/video-to-text/config.json`, or `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`.
+3. Parse the share URL first. Do not pass `--transcribe` yet:
+
+```bash
+node skills/social-content-parser/scripts/parse_social.mjs \
+  --url "https://v.douyin.com/..."
+```
+
+4. If a transcript is needed, rerun the same URL with `--transcribe`. Default `direct` mode sends `normalized.primaryVideo` to Tencent and does not require `--download-video`:
+
+```bash
+node skills/social-content-parser/scripts/parse_social.mjs \
+  --url "https://v.douyin.com/..." --transcribe --transcript-format md
+```
+
+5. Use `--transcription-mode local` plus `--download-video` only when the CDN URL needs local headers or expires quickly.
+6. Douyin profile results contain many works. Parse the profile, then transcribe a single work URL. Do not transcribe the profile itself.
+7. For an already-local file, skip the parser and call `video-to-text` directly.
+
+The parser discovers `video-to-text/scripts/transcribe_media.py` as a sibling skill. Override with `--video-to-text-script` or `VIDEO_TO_TEXT_SCRIPT` when the two skills are not installed next to each other.
+
 ## Repository Layout
 
 ```text
@@ -194,7 +244,9 @@ lgldlk-agent-skills/
 │   ├── agent-pipeline-orchestration/
 │   ├── markdown-platform-pack/
 │   ├── miniapp-figma-alignment/
-│   └── social-content-parser/
+│   ├── social-content-parser/
+│   ├── video-to-text/
+│   └── weijincha-content-check/
 └── templates/
 ```
 
