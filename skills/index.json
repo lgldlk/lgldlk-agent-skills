@@ -62,5 +62,13 @@
     "summary": "Check Chinese copy, local text files, and public text-file URLs for platform and industry risk terms through the Weijincha multi-scope endpoint.",
     "risk": "third-party-undocumented-content-moderation-api",
     "public": true
+  },
+  {
+    "name": "grok-x-search",
+    "category": "research",
+    "path": "skills/grok-x-search",
+    "summary": "Search X posts through the Grok Responses API. Defaults to streamed web search constrained to direct x.com status links, with optional native x_search.",
+    "risk": "paid-third-party-search",
+    "public": true
   }
 ]

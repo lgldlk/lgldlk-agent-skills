@@ -14,6 +14,7 @@ command -v python3 >/dev/null 2>&1 || fail "python3 is required"
 python3 - <<'PY'
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -79,16 +80,35 @@ for name, item in indexed.items():
         raise SystemExit(f"{name}: indexed path does not exist: {path}")
 
 sensitive_patterns = [
-    r"api[_-]?key\s*[:=]",
-    r"token\s*[:=]",
-    r"cookie\s*[:=]",
+    # Quoted literals only. Bare Python names such as `api_key: str` are not secrets.
+    r"api[_-]?key\s*[:=]\s*['\"][^'\"]{8,}['\"]",
+    r"token\s*[:=]\s*['\"][^'\"]{8,}['\"]",
+    r"cookie\s*[:=]\s*['\"][^'\"]{8,}['\"]",
     r"Authorization:\s*Bearer\s+",
     r"gho_[A-Za-z0-9_]+",
     r"sk-[A-Za-z0-9_-]{20,}",
 ]
 
-for path in root.rglob("*"):
-    if not path.is_file() or ".git" in path.parts:
+files = [
+    path
+    for path in root.rglob("*")
+    if path.is_file() and ".git" not in path.parts
+]
+ignored: set[str] = set()
+if files:
+    rels = [str(path.relative_to(root)) for path in files]
+    proc = subprocess.run(
+        ["git", "check-ignore", "--stdin"],
+        input="\n".join(rels) + "\n",
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    ignored = {line.strip() for line in proc.stdout.splitlines() if line.strip()}
+
+for path in files:
+    rel = str(path.relative_to(root))
+    if rel in ignored:
         continue
     if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".pyc"}:
         continue

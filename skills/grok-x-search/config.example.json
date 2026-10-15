@@ -1,0 +1,8 @@
+{
+  "base_url": "https://api.x.ai/v1",
+  "default_model": "grok-4.6",
+  "search_model": "grok-4.6",
+  "search_type": "web",
+  "search_scope": "strict",
+  "api_key": "填入你的 API key"
+}

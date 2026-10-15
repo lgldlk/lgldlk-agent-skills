@@ -17,6 +17,7 @@ npx skills add lgldlk/lgldlk-agent-skills --skill markdown-platform-pack -g -a c
 npx skills add lgldlk/lgldlk-agent-skills --skill social-content-parser -g -a codex -y
 npx skills add lgldlk/lgldlk-agent-skills --skill video-to-text -g -a codex -y
 npx skills add lgldlk/lgldlk-agent-skills --skill weijincha-content-check -g -a codex -y
+npx skills add lgldlk/lgldlk-agent-skills --skill grok-x-search -g -a codex -y
 ```
 
 Install the social parse + transcribe pair together:
@@ -38,6 +39,7 @@ cp -R skills/markdown-platform-pack ~/.codex/skills/
 cp -R skills/social-content-parser ~/.codex/skills/
 cp -R skills/video-to-text ~/.codex/skills/
 cp -R skills/weijincha-content-check ~/.codex/skills/
+cp -R skills/grok-x-search ~/.codex/skills/
 ```
 
 Then start a new Codex session so the skill metadata is reloaded.

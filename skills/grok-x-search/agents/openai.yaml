@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grok X Search"
+  short_description: "通过 Grok 搜索 X 帖子，支持严格/宽松范围"
+  default_prompt: "使用 $grok-x-search 搜索 X 上与指定主题相关的帖子，并返回每条帖子的直接链接。"

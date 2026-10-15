@@ -4,7 +4,7 @@
 
 A public collection of reusable agent skills maintained by `lgldlk`.
 
-These skills come from recurring real workflows: researching API data access, following AI news, aligning mini-program UI with Figma, packaging Markdown for platform import, parsing public social links, transcribing media, and orchestrating multi-agent work. The repository is designed as a personal skill library, while keeping every skill inspectable and installable on its own.
+These skills come from recurring real workflows: researching API data access, following AI news, searching X posts, aligning mini-program UI with Figma, packaging Markdown for platform import, parsing public social links, transcribing media, and orchestrating multi-agent work. The repository is designed as a personal skill library, while keeping every skill inspectable and installable on its own.
 
 ## Skills
 
@@ -18,6 +18,7 @@ These skills come from recurring real workflows: researching API data access, fo
 | [`social-content-parser`](skills/social-content-parser/SKILL.md) | Parse public short-video and social share URLs with a 20+ platform fallback layer, including Xiaohongshu, Douyin, and Bilibili, into local reports and media packages. | `report.md`, `normalized.json`, `raw.json`, local media, and optional transcripts. |
 | [`video-to-text`](skills/video-to-text/SKILL.md) | Transcribe local video/audio files or public media download URLs with Tencent Cloud ASR. Credentials stay outside the skill. | `transcript.txt`, `.json`, `.srt`, or `.md`. |
 | [`weijincha-content-check`](skills/weijincha-content-check/SKILL.md) | Check Chinese copy and text-like files for platform, advertising, prohibited, and industry-specific risk terms. | Normalized JSON with pass status, matched words, scopes, and source locations. |
+| [`grok-x-search`](skills/grok-x-search/SKILL.md) | Search X posts through the Grok Responses API. Defaults to streamed web search constrained to direct status links, with optional native `x_search`. | JSON with post URLs, citations, and the model's summary. |
 
 ## Quick Install
 
@@ -38,6 +39,7 @@ npx skills add lgldlk/lgldlk-agent-skills --skill markdown-platform-pack -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill social-content-parser -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill video-to-text -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill weijincha-content-check -g -y
+npx skills add lgldlk/lgldlk-agent-skills --skill grok-x-search -g -y
 ```
 
 Manual install:
@@ -52,6 +54,7 @@ cp -R skills/markdown-platform-pack ~/.skills/
 cp -R skills/social-content-parser ~/.skills/
 cp -R skills/video-to-text ~/.skills/
 cp -R skills/weijincha-content-check ~/.skills/
+cp -R skills/grok-x-search ~/.skills/
 ```
 
 Restart your agent after installation so the skill metadata is loaded.
@@ -227,6 +230,18 @@ node skills/social-content-parser/scripts/parse_social.mjs \
 
 The parser discovers `video-to-text/scripts/transcribe_media.py` as a sibling skill. Override with `--video-to-text-script` or `VIDEO_TO_TEXT_SCRIPT` when the two skills are not installed next to each other.
 
+### Grok X Search
+
+This skill searches X through a Responses-compatible Grok endpoint. The default is streamed `web_search` limited to individual `x.com` posts. Native `x_search` is opt-in. Keep the API key in the ignored `config.json`, `GROK_API_KEY`, or `XAI_API_KEY`. Copy `skills/grok-x-search/config.example.json` as a starting point.
+
+```bash
+python3 skills/grok-x-search/scripts/search_x.py "Grok 4.5 user reactions" --limit 20
+python3 skills/grok-x-search/scripts/search_x.py "model release" \
+  --search-type x --from-date 2026-07-01 --to-date 2026-07-23
+```
+
+Caller dates are inclusive. Web mode puts that window in the prompt. Native `x_search` receives the next day as `to_date` because the API end bound is exclusive.
+
 ## Repository Layout
 
 ```text
@@ -246,6 +261,7 @@ lgldlk-agent-skills/
 │   ├── miniapp-figma-alignment/
 │   ├── social-content-parser/
 │   ├── video-to-text/
+│   ├── grok-x-search/
 │   └── weijincha-content-check/
 └── templates/
 ```

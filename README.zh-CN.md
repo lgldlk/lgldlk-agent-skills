@@ -4,7 +4,7 @@
 
 这是 `lgldlk` 维护的公开个人 Agent Skills 仓库。
 
-这些技能来自真实、反复出现的工作流：API 数据能力调研、AI 新闻追踪、小程序 UI 对齐 Figma、Markdown 打包导出、公开社交链接解析、音视频转写，以及多 agent 流水线协作。这个仓库可以作为个人技能库安装，也可以单独查看和复制某一个技能。
+这些技能来自真实、反复出现的工作流：API 数据能力调研、AI 新闻追踪、X 帖子搜索、小程序 UI 对齐 Figma、Markdown 打包导出、公开社交链接解析、音视频转写，以及多 agent 流水线协作。这个仓库可以作为个人技能库安装，也可以单独查看和复制某一个技能。
 
 ## 技能列表
 
@@ -18,6 +18,7 @@
 | [`social-content-parser`](skills/social-content-parser/SKILL.md) | 解析公开短视频和社交分享链接，提供 20+ 平台兜底层，包括小红书、抖音、哔哩哔哩，生成本地报告和媒体包。 | `report.md`、`normalized.json`、`raw.json`、本地媒体和可选转写。 |
 | [`video-to-text`](skills/video-to-text/SKILL.md) | 用腾讯云 ASR 转写本地音视频或可公开下载的媒体 URL。密钥放在技能目录外。 | `transcript.txt`、`.json`、`.srt` 或 `.md`。 |
 | [`weijincha-content-check`](skills/weijincha-content-check/SKILL.md) | 检查中文文案和文本类文件中的平台、广告、违禁及行业风险词。 | 包含通过状态、命中词、检测范围和来源位置的标准化 JSON。 |
+| [`grok-x-search`](skills/grok-x-search/SKILL.md) | 通过 Grok Responses API 搜索 X 帖子。默认用流式 web search，并限制为直接帖子链接；需要时再显式使用原生 `x_search`。 | 带帖子链接、引用和模型摘要的 JSON。 |
 
 ## 快速安装
 
@@ -38,6 +39,7 @@ npx skills add lgldlk/lgldlk-agent-skills --skill markdown-platform-pack -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill social-content-parser -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill video-to-text -g -y
 npx skills add lgldlk/lgldlk-agent-skills --skill weijincha-content-check -g -y
+npx skills add lgldlk/lgldlk-agent-skills --skill grok-x-search -g -y
 ```
 
 手动安装：
@@ -52,6 +54,7 @@ cp -R skills/markdown-platform-pack ~/.skills/
 cp -R skills/social-content-parser ~/.skills/
 cp -R skills/video-to-text ~/.skills/
 cp -R skills/weijincha-content-check ~/.skills/
+cp -R skills/grok-x-search ~/.skills/
 ```
 
 安装后重启你的 agent，让技能元数据重新加载。
@@ -211,6 +214,18 @@ node skills/social-content-parser/scripts/parse_social.mjs \
 
 解析器会把 `video-to-text/scripts/transcribe_media.py` 当成兄弟技能自动发现。如果两个技能没有装在一起，用 `--video-to-text-script` 或 `VIDEO_TO_TEXT_SCRIPT` 指定路径。
 
+### Grok X Search
+
+这个技能通过兼容 Responses 的 Grok 端点搜索 X。默认是流式 `web_search`，并且只收单条 `x.com` 帖子。原生 `x_search` 需要显式打开。API key 放在被忽略的 `config.json`、`GROK_API_KEY` 或 `XAI_API_KEY` 里。可以从 `skills/grok-x-search/config.example.json` 复制一份起步配置。
+
+```bash
+python3 skills/grok-x-search/scripts/search_x.py "Grok 4.5 user reactions" --limit 20
+python3 skills/grok-x-search/scripts/search_x.py "model release" \
+  --search-type x --from-date 2026-07-01 --to-date 2026-07-23
+```
+
+调用方看到的日期两端都包含当天。web 模式把这个窗口写进 prompt。原生 `x_search` 的 `to_date` 是开区间，所以脚本会改传下一天。
+
 ## 仓库结构
 
 ```text
@@ -230,6 +245,7 @@ lgldlk-agent-skills/
 │   ├── miniapp-figma-alignment/
 │   ├── social-content-parser/
 │   ├── video-to-text/
+│   ├── grok-x-search/
 │   └── weijincha-content-check/
 └── templates/
 ```
